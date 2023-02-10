@@ -1,0 +1,484 @@
+PB_int_flag:
+    .word 0x0
+	
+tim_int_flag:
+    .word 0x0
+	
+.section .vectors, "ax"
+B _start
+B SERVICE_UND       // undefined instruction vector
+B SERVICE_SVC       // software interrupt vector
+B SERVICE_ABT_INST  // aborted prefetch vector
+B SERVICE_ABT_DATA  // aborted data vector
+.word 0 // unused vector
+B SERVICE_IRQ       // IRQ interrupt vector
+B SERVICE_FIQ       // FIQ interrupt vector
+.text
+.global _start
+
+.equ HEX0_TO_3, 0xFF200020
+.equ HEX4_TO_5, 0xFF200030
+.equ PB0_TO_3, 0xFF200050 
+.equ EDG_CAP, 0xFF20005C
+.equ LOAD_REG, 0xFFFEC600
+.equ COUNT_REG, 0xFFFEC604
+.equ CTR_REG, 0xFFFEC608
+.equ INT_REG, 0xFFFEC60C
+.equ EN_INT, 0xFF200058
+
+_start:
+    /* Set up stack pointers for IRQ and SVC processor modes */
+    MOV    R1, #0b11010010      // interrupts masked, MODE = IRQ
+    MSR    CPSR_c, R1           // change to IRQ mode
+    LDR    SP, =0xFFFFFFFF - 3  // set IRQ stack to A9 onchip memory
+    /* Change to SVC (supervisor) mode with interrupts disabled */
+    MOV    R1, #0b11010011      // interrupts masked, MODE = SVC
+    MSR    CPSR, R1             // change to supervisor mode
+    LDR    SP, =0x3FFFFFFF - 3  // set SVC stack to top of DDR3 memory
+    BL     CONFIG_GIC           // configure the ARM GIC
+    // To DO: write to the pushbutton KEY interrupt mask register
+    // Or, you can call enable_PB_INT_ASM subroutine from previous task
+    // to enable interrupt for ARM A9 private timer, use ARM_TIM_config_ASM subroutine 
+	BL ARM_TIM_config_ASM	
+	MOV R2, #0x7 //111
+	BL enable_PB_INT_ASM //delete [..]! cuz already done!!
+	//activate the interrupts for pushbuttons and ARM A9 private timer 
+	//by calling the subroutines you wrote in the previous tasks 
+	//(Call enable_PB_INT_ASM and ARM_TIM_config_ASM subroutines)
+	 // enable IRQ interrupts in the processor
+    MOV R0, #0b01010011      // IRQ unmasked, MODE = SVC
+    MSR CPSR_c, R0
+
+//one-time thing
+HEX_default:
+	PUSH {R11,R12}
+	LDR R12, =HEX0_TO_3
+	MOV R11, #0x3f
+	
+	STRB R11, [R12]
+	ADD R12,R12,#1
+	
+	STRB R11, [R12]
+	ADD R12,R12,#1
+	
+	STRB R11, [R12]
+	ADD R12,R12,#1
+	
+	STRB R11, [R12]
+	ADD R12,R12,#1
+	
+	LDR R12, =HEX4_TO_5
+		
+	STRB R11, [R12]
+	ADD R12,R12,#1
+	
+	STRB R11, [R12]
+	ADD R12,R12,#1
+	
+	POP {R11,R12}
+	MOV R7, #0
+	MOV R8, #0
+	MOV R9, #0
+	MOV R10, #0
+	MOV R11, #0
+	MOV R12, #0	
+	
+IDLE:
+	LDR R1, PB_int_flag
+	CMP R1, #0x1
+	BEQ IF_TIM_INT
+	
+	LDR R1, PB_int_flag
+	CMP R1, #0x2
+	BEQ IDLE //wait in idle
+	
+	LDR R1, PB_int_flag
+	CMP R1, #0x4
+	BEQ HEX_default
+	
+	 
+    B IDLE // This is where you write your objective task
+
+IF_TIM_INT:
+	LDR R0, tim_int_flag
+	CMP R0, #1
+	MOVEQ R0, #0 //reset if interrupted
+	STREQ R0, tim_int_flag //restore back to it!! or useless
+	BEQ	start_tim
+	
+	B IDLE
+	
+////////////////////////////-----------------------------------------------/////////////////	
+start_tim:
+	ADD R11, R11, #1
+	//MOV R0, #0
+	
+mili_sec:
+	MOV R5, #1
+	CMP R11, #10
+	BLGE HEX_write_ASM
+	//MOVGE R11, #0
+	BGE uni_sec
+	BLLE HEX_write_ASM
+	B IDLE
+	
+uni_sec:
+	MOV R5, #2
+	CMP R12, #9	
+	MOVGE R12, #0 //一轮结束
+	BLGE HEX_write_ASM
+	BGE dec_sec
+	ADDLE R12, R12, #1
+	MOVLE R11, R12
+	BLLE HEX_write_ASM
+	MOV R11, #0 //CLEAR!!!!
+	B IDLE
+
+dec_sec:
+	MOV R5, #3
+	CMP R7, #5	
+	MOVGE R7, #0 //一轮结束
+	BLGE HEX_write_ASM
+	BGE uni_min
+	ADDLE R7, R7, #1
+	MOVLE R11, R7
+	BLLE HEX_write_ASM
+	MOV R11, #0
+	B IDLE
+
+uni_min:
+	MOV R5, #4
+	CMP R8, #9	
+	MOVGE R8, #0 //一轮结束
+	BLGE HEX_write_ASM
+	BGE dec_min
+	ADDLE R8, R8, #1
+	MOVLE R11, R8
+	BLLE HEX_write_ASM
+	MOV R11, #0
+	B IDLE
+	
+dec_min:
+	MOV R5, #5
+	CMP R9, #5	
+	MOVGE R8, #0 //一轮结束
+	BLGE HEX_write_ASM
+	BGE hour
+	ADDLE R9, R9, #1
+	MOVLE R11, R9
+	BLLE HEX_write_ASM
+	MOV R11, #0
+	B IDLE
+
+hour:
+	MOV R5, #6
+	CMP R10, #9	
+	MOVGE R10, #0 //一轮结束
+	BLGE HEX_write_ASM
+	BGE dec_min
+	ADDLE R10, R10, #1
+	MOVLE R11, R10
+	BLLE HEX_write_ASM
+	MOV R11, #0
+	B IDLE
+	
+HEX_write_ASM:
+	PUSH {R5, R6, R7, R8, R9, R10, R11, R12, LR}
+	LDR R2, =HEX0_TO_3
+	
+ZERO:
+	CMP R11, #0x0
+	BNE ONE 
+	MOVEQ R6, #0x3f
+	B HEX_TO_WRITE
+
+ONE:	
+	CMP R11, #0x1
+	BNE TWO //not one, go to next
+	MOVEQ R6, #0x06
+	B HEX_TO_WRITE
+
+TWO:
+	CMP R11, #0x2
+	BNE THREE
+	MOVEQ R6, #0x5B
+	B HEX_TO_WRITE
+
+THREE:
+	CMP R11, #0x3
+	BNE FOUR
+	MOVEQ R6, #0X4F
+	B HEX_TO_WRITE
+	
+FOUR:
+	CMP R11, #0x4
+	BNE FIVE
+	MOVEQ R6, #0x66
+	B HEX_TO_WRITE
+	
+FIVE:
+	CMP R11, #0x5
+	BNE SIX
+	MOVEQ R6, #0x6D
+	B HEX_TO_WRITE
+
+SIX:
+	CMP R11, #0x6
+	BNE SEVEN
+	MOVEQ R6, #0x7D
+	B HEX_TO_WRITE
+	
+SEVEN:
+	CMP R11, #0x7
+	BNE EIGHT
+	MOVEQ R6, #0x07
+	B HEX_TO_WRITE
+	
+EIGHT:
+	CMP R11, #0x8
+	BNE NINE
+	MOVEQ R6, #0x7F
+	B HEX_TO_WRITE
+	
+NINE:
+	CMP R11, #0x9
+	BNE ZERO_TEN
+	MOVEQ R6, #0x67
+	B HEX_TO_WRITE
+		
+ZERO_TEN:
+	CMP R11, #10
+	BNE ONE 
+	MOVEQ R6, #0x3f
+	B HEX_TO_WRITE
+
+HEX_TO_WRITE:
+	CMP R5, #1 //write on hex0: milisec
+	STREQB R6, [R2]
+	//ADD R2,R2,#1 //store b by b, not clear the one before as needed!
+	BEQ BACK
+	
+	CMP R5, #2
+	//*LSLEQ R6,R6, #8
+	ADD R2,R2,#1
+	STREQB R6, [R2]
+	BEQ BACK
+	
+	CMP R5, #3
+	//LSLEQ R6,R6, #16
+	ADD R2,R2,#1
+	STREQB R6, [R2]
+	BEQ BACK
+	
+	CMP R5, #4
+	//LSLEQ R6,R6, #24	
+	ADD R2,R2,#1
+	STREQB R6, [R2]
+	BEQ BACK
+	
+	CMP	R5, #5
+	LDREQ R2, =HEX4_TO_5
+	STREQB R6, [R2]
+	BEQ BACK
+	
+	CMP R5, #6
+	LDREQ R2, =HEX4_TO_5
+	ADDEQ R2,R2,#1
+	STREQB R6, [R2]
+	BEQ BACK
+	
+BACK:
+	POP {R5, R6, R7, R8, R9, R10, R11, R12, LR}
+	BX LR	
+	
+ARM_TIM_config_ASM: 
+	PUSH {R0, R1, R11, LR}
+	LDR R0, =LOAD_REG
+	LDR R1, =#20000000
+	STR R1, [R0]
+	
+	MOV R11, #0
+	
+	LDR R0, =CTR_REG
+	MOV R1, #0b111
+	STR R1, [R0]
+	POP {R0, R1, R11, LR}
+	BX LR
+
+enable_PB_INT_ASM:
+	PUSH {R5, R6, LR}
+	LDR R5, =EN_INT
+	LDR R6, [R5]
+	ORR R6, R6, R2 //setting the interrupt mask bits to '1'
+	STR R6, [R5]
+	POP {R5,R6, LR}
+    BX  LR
+	
+//////////////////////////////////////----------------------////////////////////////	
+	
+/*--- Undefined instructions ---------------------------------------- */
+SERVICE_UND:
+    B SERVICE_UND
+/*--- Software interrupts ------------------------------------------- */
+SERVICE_SVC:
+    B SERVICE_SVC
+/*--- Aborted data reads -------------------------------------------- */
+SERVICE_ABT_DATA:
+    B SERVICE_ABT_DATA
+/*--- Aborted instruction fetch ------------------------------------- */
+SERVICE_ABT_INST:
+    B SERVICE_ABT_INST
+/*--- IRQ ----------------------------------------------------------- */
+SERVICE_IRQ:
+    PUSH {R0-R7, LR}
+/* Read the ICCIAR from the CPU Interface */
+    LDR R4, =0xFFFEC100
+    LDR R5, [R4, #0x0C] // read from ICCIAR
+
+/* To Do: Check which interrupt has occurred (check interrupt IDs)
+   Then call the corresponding ISR
+   If the ID is not recognized, branch to UNEXPECTED 
+   See the assembly example provided in the De1-SoC Computer_Manual on page 46 */   
+   
+FIND_TIM_INT_ID:
+	CMP R5, #29
+	//BNE UNEXPECTED issue: R5 49 
+	BNE Pushbutton_check
+	BLEQ ARM_TIM_ISR
+	BEQ EXIT_IRQ
+
+Pushbutton_check:
+    CMP R5, #73
+UNEXPECTED:
+    BNE UNEXPECTED      // if not recognized, stop here
+    BL KEY_ISR
+EXIT_IRQ:
+/* Write to the End of Interrupt Register (ICCEOIR) */
+    STR R5, [R4, #0x10] // write to ICCEOIR
+    POP {R0-R7, LR}
+SUBS PC, LR, #4
+/*--- FIQ ----------------------------------------------------------- */
+SERVICE_FIQ:
+    B SERVICE_FIQ	
+	
+	
+CONFIG_GIC:
+    PUSH {LR}
+/* To configure the FPGA KEYS interrupt (ID 73):
+* 1. set the target to cpu0 in the ICDIPTRn register
+* 2. enable the interrupt in the ICDISERn register */
+/* CONFIG_INTERRUPT (int_ID (R0), CPU_target (R1)); */
+/* To Do: you can configure different interrupts
+   by passing their IDs to R0 and repeating the next 3 lines */  
+   	MOV R0, #29
+	MOV R1, #1
+	BL CONFIG_INTERRUPT
+   
+    MOV R0, #73            // KEY port (Interrupt ID = 73)
+    MOV R1, #1             // this field is a bit-mask; bit 0 targets cpu0
+    BL CONFIG_INTERRUPT 
+
+/* configure the GIC CPU Interface */
+    LDR R0, =0xFFFEC100    // base address of CPU Interface
+/* Set Interrupt Priority Mask Register (ICCPMR) */
+    LDR R1, =0xFFFF        // enable interrupts of all priorities levels
+    STR R1, [R0, #0x04]
+/* Set the enable bit in the CPU Interface Control Register (ICCICR).
+* This allows interrupts to be forwarded to the CPU(s) */
+    MOV R1, #1
+    STR R1, [R0]
+/* Set the enable bit in the Distributor Control Register (ICDDCR).
+* This enables forwarding of interrupts to the CPU Interface(s) */
+    LDR R0, =0xFFFED000
+    STR R1, [R0]
+    POP {PC}
+
+/*
+* Configure registers in the GIC for an individual Interrupt ID
+* We configure only the Interrupt Set Enable Registers (ICDISERn) and
+* Interrupt Processor Target Registers (ICDIPTRn). The default (reset)
+* values are used for other registers in the GIC
+* Arguments: R0 = Interrupt ID, N
+* R1 = CPU target
+*/
+CONFIG_INTERRUPT:
+    PUSH {R4-R5, LR}
+/* Configure Interrupt Set-Enable Registers (ICDISERn).
+* reg_offset = (integer_div(N / 32) * 4
+* value = 1 << (N mod 32) */
+    LSR R4, R0, #3    // calculate reg_offset
+    BIC R4, R4, #3    // R4 = reg_offset
+    LDR R2, =0xFFFED100
+    ADD R4, R2, R4    // R4 = address of ICDISER
+    AND R2, R0, #0x1F // N mod 32
+    MOV R5, #1        // enable
+    LSL R2, R5, R2    // R2 = value
+/* Using the register address in R4 and the value in R2 set the
+* correct bit in the GIC register */
+    LDR R3, [R4]      // read current register value
+    ORR R3, R3, R2    // set the enable bit
+    STR R3, [R4]      // store the new register value
+/* Configure Interrupt Processor Targets Register (ICDIPTRn)
+* reg_offset = integer_div(N / 4) * 4
+* index = N mod 4 */
+    BIC R4, R0, #3    // R4 = reg_offset
+    LDR R2, =0xFFFED800
+    ADD R4, R2, R4    // R4 = word address of ICDIPTR
+    AND R2, R0, #0x3  // N mod 4
+    ADD R4, R2, R4    // R4 = byte address in ICDIPTR
+/* Using register address in R4 and the value in R2 write to
+* (only) the appropriate byte */
+    STRB R1, [R4]
+    POP {R4-R5, PC}	
+	
+KEY_ISR:
+    LDR R0, =0xFF200050    // base address of pushbutton KEY port
+    LDR R1, [R0, #0xC] 
+	STR R1, PB_int_flag // read edge capture register
+    MOV R2, #0xF
+    STR R2, [R0, #0xC]     // clear the interrupt
+    LDR R0, =0xFF200020   // based address of HEX display
+	  
+CHECK_KEY0:
+    MOV R3, #0x1
+    ANDS R3, R3, R1        // check for KEY0
+    BEQ CHECK_KEY1
+    //MOV R2, #0b00111111
+    //STR R2, [R0]           // display "0"
+    B END_KEY_ISR
+CHECK_KEY1:
+    MOV R3, #0x2
+    ANDS R3, R3, R1        // check for KEY1
+    BEQ CHECK_KEY2
+    //MOV R2, #0b00000110
+    //STR R2, [R0]           // display "1"
+    B END_KEY_ISR
+CHECK_KEY2:
+    MOV R3, #0x4
+    ANDS R3, R3, R1        // check for KEY2
+    BEQ IS_KEY3
+   // MOV R2, #0b01011011 //shold be deleted!! OR my hex will be turned off!!
+    //STR R2, [R0]           // display "2"
+    B END_KEY_ISR
+IS_KEY3:
+    //MOV R2, #0b01001111
+    //STR R2, [R0]           // display "3"
+END_KEY_ISR:
+     BX LR
+	 
+ARM_TIM_ISR:
+//writes the value '1' in to the tim_int_flag memory when an interrupt is received. 
+//Then it clears the interrupt. 
+//In your main code (see IDLE), 
+//you may read the tim_int_flag memory 
+//to determine whether the timer interrupt has occurred.
+	PUSH {LR}
+	LDR R3, =INT_REG
+	LDR R3, [R3]
+	CMP R3, #1
+	STREQ R3, tim_int_flag //writes the value '1' in to the tim_int_flag memory when an interrupt is received. 
+	LDR R0, =INT_REG
+	MOV R1, #1
+	STRB R1, [R0] //write 1 to clear it
+	POP {LR}
+	BX LR    
