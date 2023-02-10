@@ -1,0 +1,220 @@
+.global _start
+
+.equ LED_ADDR, 0xFF200000
+.equ SW_ADDR, 0xFF200040
+.equ HEX0_TO_3, 0xFF200020
+.equ HEX4_TO_5, 0xFF200030
+.equ PB0_TO_3, 0xFF200050 
+.equ EDG_CAP, 0xFF20005C
+
+_start:
+	LDR R4, =HEX4_TO_5
+	LDR R5, =#0b111111111111111
+	STR R5, [R4]
+
+MAIN:
+	BL read_slider_switches_ASM
+	BL write_LEDs_ASM
+	
+	MOV R9, #0x1
+	BL read_PB_edgecp_ASM
+	MOVNE R3, #1
+	BLNE HEX_WRITE_ASM
+	BL read_PB_edgecp_ASM //cmp again, to go clear
+	BLNE PB_clear_edgecp_ASM
+	MOV R3, #0
+	
+PB1:
+	MOV R9, #0x2
+	BL read_PB_edgecp_ASM
+	MOVNE R10, #1
+	BLNE HEX_WRITE_ASM
+	BL read_PB_edgecp_ASM
+	BLNE PB_clear_edgecp_ASM
+	MOVNE R10, #0
+	
+PB2:
+	MOV R9, #0x4
+	BL read_PB_edgecp_ASM
+	MOVNE R11, #1
+	BLNE HEX_WRITE_ASM
+	BL read_PB_edgecp_ASM
+	BLNE PB_clear_edgecp_ASM
+	MOVNE R11, #0
+	
+PB3:	
+	MOV R9, #0x8
+	BL read_PB_edgecp_ASM
+	MOVNE R12, #1
+	BLNE HEX_WRITE_ASM
+	BL read_PB_edgecp_ASM
+	BLNE PB_clear_edgecp_ASM
+	MOVNE R12, #0
+	
+	TST R1, #0x200 //=9, clear
+	BLNE HEX_CLEAR_ASM
+	B MAIN
+	
+read_slider_switches_ASM:
+    LDR R0, =SW_ADDR     
+    LDR R1, [R0]       
+	BX LR
+	
+write_LEDs_ASM:
+    LDR R0, =LED_ADDR    
+    STR R1, [R0]        
+	BX LR
+	
+read_PB_edgecp_ASM:
+	PUSH {R7,R8,LR}
+	LDR R7, =EDG_CAP
+	LDRB R8, [R7]
+	TST R8, R9 //R8 state now (from read),R9 check PB Num.
+	POP {R7,R8,LR}
+	BX LR
+
+HEX_WRITE_ASM:
+	PUSH {R1,R2,R6,R9,R10,R11,R12,LR}
+	LDR R2, =HEX0_TO_3
+
+ZER0:
+	CMP R1, #0x0
+	BNE ONE 
+	MOVEQ R6, #0x3f
+	B PB_TO_WRITE
+
+ONE:	
+	CMP R1, #0x1
+	BNE TWO //not one, go to next
+	MOVEQ R6, #0x06
+	B PB_TO_WRITE
+
+TWO:
+	CMP R1, #0x2
+	BNE THREE
+	MOVEQ R6, #0x5B
+	B PB_TO_WRITE
+
+THREE:
+	CMP R1, #0x3
+	BNE FOUR
+	MOVEQ R6, #0X4F
+	B PB_TO_WRITE
+	
+FOUR:
+	CMP R1, #0x4
+	BNE FIVE
+	MOVEQ R6, #0x66
+	B PB_TO_WRITE
+	
+FIVE:
+	CMP R1, #0x5
+	BNE SIX
+	MOVEQ R6, #0x6D
+	B PB_TO_WRITE
+
+SIX:
+	CMP R1, #0x6
+	BNE SEVEN
+	MOVEQ R6, #0x7D
+	B PB_TO_WRITE
+	
+SEVEN:
+	CMP R1, #0x7
+	BNE EIGHT
+	MOVEQ R6, #0x07
+	B PB_TO_WRITE
+	
+EIGHT:
+	CMP R1, #0x8
+	BNE NINE
+	MOVEQ R6, #0x7F
+	B PB_TO_WRITE
+	
+NINE:
+	CMP R1, #0x9
+	BNE A
+	MOVEQ R6, #0x67
+	B PB_TO_WRITE
+	
+A:
+	CMP R1, #0xA
+	BNE B
+	MOVEQ R6, #0x77
+	B PB_TO_WRITE
+
+B:
+	CMP R1, #0xB
+	BNE C
+	MOVEQ R6, #0xFC
+	B PB_TO_WRITE
+
+C:	
+	CMP R1, #0xC
+	BNE D
+	MOVEQ R6, #0x39
+	B PB_TO_WRITE
+
+D:
+	CMP R1, #0xD
+	BNE E
+	MOVEQ R6, #0xDE
+	B PB_TO_WRITE
+
+E:
+	CMP R1, #0xE
+	BNE F
+	MOVEQ R6, #0x79
+	B PB_TO_WRITE
+	
+F:
+	CMP R1, #0xF
+	BNE HEX_WRITE_ASM
+	MOVEQ R6, #0x71
+	B PB_TO_WRITE
+	
+PB_TO_WRITE:
+	CMP R3, #1 //if PB0 released?
+	//LSLEQ R6,R6, #0 will clear the last one No!!
+	STREQB R6, [R2]
+	ADD R2,R2,#1 //store b by b, not clear the one before as needed!
+	BEQ BACK
+	
+	CMP R10, #1
+	//LSLEQ R6,R6, #8
+	STREQB R6, [R2]
+	ADD R2,R2,#1
+	BEQ BACK
+	
+	CMP R11, #1
+	//LSLEQ R6,R6, #16
+	STREQB R6, [R2]
+	ADD R2,R2,#1
+	BEQ BACK
+	
+	CMP R12, #1
+	//LSLEQ R6,R6, #24
+	STREQB R6, [R2]
+	ADD R2,R2,#1
+	BEQ BACK
+BACK:
+	POP {R1,R2,R6,R9,R10,R11,R12,LR}
+	BX LR
+	
+PB_clear_edgecp_ASM:
+	PUSH {R1, LR}
+	LDR R1, =EDG_CAP
+	LDRB R2, [R1]
+	STRB R2, [R1]
+	POP {R1, LR}
+	BX LR
+
+HEX_CLEAR_ASM:
+	PUSH {R2,R3,LR}
+	
+	MOV R3, #0
+	LDR R2, =HEX0_TO_3
+	STR R3, [R2]
+
+	POP {R2,R3,LR}
+	BX LR
