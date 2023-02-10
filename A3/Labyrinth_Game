@@ -1,0 +1,965 @@
+.global _start
+.equ PIX_ADDR, 0xC8000000
+.equ CHAR_ADDR, 0xC9000000
+.equ size, 312
+.equ white, 4538825
+.equ green, 1004848
+.equ blue, 4538825
+.equ PS2_DATA, 0xFF200100
+.equ LOAD_REG, 0xFFFEC600
+.equ CTR_REG, 0xFFFEC608
+.equ INT_REG, 0xFFFEC60C
+room: .space 4
+
+//--------//------//-------//---------//------
+
+input_maze_1:// First Obstacle Course
+            .word 2,1,0,1,1,1,0,0,0,1,0,1
+            .word 0,1,0,1,1,1,0,0,0,1,0,1
+            .word 0,1,0,0,0,0,0,0,0,1,0,1
+            .word 0,1,0,1,1,1,0,0,0,1,1,1
+            .word 0,1,0,1,1,1,0,0,0,1,1,1
+            .word 0,0,0,1,1,1,0,0,0,1,1,1
+            .word 1,1,1,1,1,1,0,0,1,0,0,0
+            .word 1,1,1,1,1,1,0,1,0,0,0,0
+            .word 1,1,1,1,1,1,0,0,0,0,0,3
+input_maze_2:// Second Obstacle Course
+            .word 2,1,0,1,1,1,0,0,0,0,0,1
+            .word 0,1,0,1,1,1,0,0,0,1,0,1
+            .word 0,1,0,0,0,0,0,0,0,1,0,1
+            .word 0,1,0,1,1,1,0,0,0,1,0,1
+            .word 0,1,0,1,1,1,0,0,0,1,0,1
+            .word 0,0,0,1,1,1,0,0,0,1,0,1
+            .word 1,1,1,1,1,1,0,0,1,0,0,0
+            .word 1,1,1,1,1,1,0,1,0,0,0,0
+            .word 1,1,1,1,1,1,1,0,0,0,0,3
+input_maze_3:// Third Obstacle Course
+            .word 2,0,0,0,0,1,0,0,0,1,0,1
+            .word 0,1,1,1,0,1,1,1,0,1,0,1
+            .word 0,1,0,0,0,0,0,0,0,0,0,1
+            .word 0,1,1,1,1,1,0,1,1,1,0,1
+            .word 0,1,0,0,0,0,0,0,0,1,0,1
+            .word 1,1,0,1,1,1,1,1,1,1,1,1
+            .word 0,1,0,0,0,0,0,0,0,0,0,1
+            .word 0,1,1,1,0,1,1,1,1,1,0,1
+            .word 0,0,0,0,0,0,0,1,0,0,0,3
+input_maze_4:// Fourth Obstacle Course
+            .word 2,1,0,0,0,0,0,0,0,0,0,1
+            .word 0,1,0,1,1,1,0,1,1,1,0,1
+            .word 0,1,0,0,0,1,0,1,0,1,0,1
+            .word 0,1,0,1,0,1,1,1,0,1,0,1
+            .word 0,0,0,1,0,0,0,0,0,1,0,1
+            .word 0,1,0,1,1,1,1,1,1,1,0,1
+            .word 0,1,0,1,0,0,0,1,0,0,0,1
+            .word 0,1,0,1,1,1,0,1,0,1,1,1
+            .word 0,1,0,1,0,0,0,0,0,0,0,3
+input_maze_5:// Fifth Obstacle Course
+            .word 2,0,0,0,0,1,0,1,0,1,0,1
+            .word 1,1,0,1,1,1,0,1,0,1,0,1
+            .word 0,0,0,0,0,0,0,0,0,0,0,1
+            .word 0,1,1,1,0,1,1,1,1,1,0,1
+            .word 0,0,0,1,0,1,0,1,0,0,0,1
+            .word 1,1,0,1,1,1,0,1,1,1,0,1
+            .word 0,0,0,1,0,1,0,0,0,0,0,1
+            .word 0,1,0,1,0,1,0,1,0,1,1,1
+            .word 0,1,0,0,0,1,0,1,0,0,0,3
+input_maze_6:// Sixth Obstacle Course
+            .word 2,0,0,0,0,0,0,1,0,0,0,1
+            .word 1,1,0,1,0,1,0,1,0,1,0,1
+            .word 0,0,0,1,0,1,0,0,0,1,0,1
+            .word 1,1,1,1,0,1,1,1,1,1,1,1
+            .word 0,0,0,1,0,0,0,1,0,0,0,1
+            .word 0,1,1,1,0,1,1,1,0,1,0,1
+            .word 0,1,0,0,0,0,0,0,0,1,0,1
+            .word 0,1,0,1,1,1,1,1,1,1,0,1
+            .word 0,0,0,0,0,0,0,0,0,1,0,3
+input_maze_7:// Seventh Obstacle Course
+            .word 2,0,0,0,0,0,0,0,1,0,1,0
+            .word 1,1,1,0,1,1,1,1,1,0,1,0
+            .word 1,0,0,0,0,0,1,0,0,0,0,0
+            .word 1,1,1,1,1,0,1,1,1,0,1,1
+            .word 1,0,0,0,1,0,0,0,0,0,0,0
+            .word 1,0,1,0,1,0,1,0,1,0,1,0
+            .word 1,0,1,0,0,0,1,0,1,0,1,0
+            .word 1,1,1,1,1,1,1,1,1,0,1,0
+            .word 1,0,0,0,0,0,0,0,0,0,1,3
+input_maze_8:// Eighth Obstacle Course
+            .word 2,0,0,0,0,0,0,0,0,0,0,0
+            .word 1,0,1,1,1,1,1,0,1,1,1,0
+            .word 1,0,0,0,1,0,0,0,1,0,0,0
+            .word 1,1,1,1,1,0,1,1,1,1,1,1
+            .word 1,0,0,0,1,0,1,0,0,0,0,0
+            .word 1,0,1,1,1,0,1,1,1,0,1,0
+            .word 1,0,0,0,0,0,0,0,1,0,1,0
+            .word 1,1,1,0,1,0,1,1,1,1,1,0
+            .word 1,0,0,0,1,0,0,0,0,0,0,3
+input_maze_9:// Nineth Obstacle Course
+            .word 2,0,0,0,0,0,1,0,1,0,1,0
+            .word 1,0,1,1,1,1,1,0,1,0,1,0
+            .word 1,0,0,0,1,0,0,0,0,0,0,0
+            .word 1,0,1,0,1,1,1,0,1,1,1,1
+            .word 1,0,1,0,1,0,1,0,0,0,1,0
+            .word 1,0,1,1,1,0,1,0,1,1,1,0
+            .word 1,0,0,0,1,0,0,0,0,0,1,0
+            .word 1,0,1,1,1,0,1,1,1,0,1,0
+            .word 1,0,0,0,0,0,1,0,0,0,0,3
+			
+//----//----///--------//------///--------//-------//------
+
+_start:
+        BL VGA_fill_ASM
+		BL VGA_DRAW_GRID
+		BL CHOOSE_MAZE
+		BL draw_exit_ASM
+		BL draw_ampersand_ASM
+		BL move_ASM
+		BL VGA_fill_ASM
+		BL WRITE_WIN
+		BL STAY
+		BL CLEAR_WIN
+		B _start
+
+end:
+        b       end
+//横轴/12 纵轴/9 纵=234(9*26) 横=312(12*26)
+
+@ TODO: copy VGA driver here.
+VGA_fill_ASM_helper:
+	PUSH {R3,R4,R5,R6,R7,LR}
+	
+	LDR R3, =PIX_ADDR
+	LDR R4, =size //312 is divisible by 12
+	CMP R0, R4
+	BGT ERROR 
+	
+	CMP R1, #234 //234 is divisible by 9
+	BGT ERROR
+	
+	LSL R6, R0, #1 //X (start with X=0, next time it will move to X=2)
+	LSL R7, R1, #10 //Y
+	
+	ADD R5, R6, R7 //shiftedX+shiftedY
+	ADD R5, R5, R3 //base_addr + shiftedX + shiftedY (offset of pixel)
+	STRLEH R2, [R5]	
+	POP {R3,R4,R5,R6,R7,LR}
+	BX LR
+	
+VGA_fill_ASM:	
+	PUSH {R3,LR}
+	LDR R3, =size
+	MOV R0, #0
+	MOV R1, #0
+	LDR R2, =white
+
+	Y_LOOP:
+	MOV R0, #0
+	CMP R1, #234
+	BLE X_LOOP
+	BGT END_CLEAR
+	
+	X_LOOP:
+	CMP R0, R3
+	ADDGT R1, R1, #1
+	BGT Y_LOOP
+	BL VGA_fill_ASM_helper
+	ADD R0, R0, #1
+	B X_LOOP
+	
+	END_CLEAR:
+	POP {R3,LR}
+	BX LR	
+	
+//-------//------//-------//------//----------//------------///	
+	
+VGA_DRAW_GRID_HELPER:
+	PUSH {R3,R4,R5,R6,R7,LR}
+	
+	LDR R3, =PIX_ADDR
+	LDR R4, =size //312 is divisible by 12
+	CMP R0, R4
+	BGT ERROR 
+	
+	CMP R1, #234 //234 is divisible by 9
+	BGT ERROR
+	
+	LSL R6, R0, #1 //X (start with X=0, next time it will move to X=2)
+	LSL R7, R1, #10 //Y
+	
+	ADD R5, R6, R7 //shiftedX+shiftedY
+	ADD R5, R5, R3 //base_addr + shiftedX + shiftedY (offset of pixel)
+	STRLEH R2, [R5]	
+	POP {R3,R4,R5,R6,R7,LR}
+	BX LR
+	
+VGA_DRAW_GRID:	
+	PUSH {R3, R4, R5, R6, R7, R8, LR}
+
+	LDR R2, =green
+
+Y_BIG_LOOP:
+	MOV R3, #0 //clear x_big counter
+	CMP R4, #11//Y_BIG counter
+	BLE X_BIG_LOOP
+	BGT END_DRAW
+	
+	X_BIG_LOOP:
+	CMP R3, #8
+
+	ADDGT R4, R4, #1
+	BGT Y_BIG_LOOP
+	MOV R12, #26//R12 放垃圾
+	MUL R5, R4, R12 //R5=R4*26 //小x的offset起点
+	MUL R6, R3, R12 //小y的offset的起点
+	CMP R3, #8
+	BLE YG_LOOP_PRE
+			
+			//MOV R0, R5
+			YG_LOOP_PRE:
+			MOV R1, R6 //set 小y start from offset
+			MOV R8, #0
+			YG_LOOP:
+			MOV R0, R5 //set 小x start from offset
+			MOV R7, #0
+			CMP R8, #23 //小y counter
+			BLE XG_LOOP
+			ADDGT R3, R3, #1
+			BGT X_BIG_LOOP
+	
+				XG_LOOP:
+				CMP R7, #23 //小x counter
+				//CMP R0, #24 //小x, 每次从大win的counter*26开始
+				ADDGT R8, R8, #1 //小y counter
+				ADDGT R1, R1, #1
+				BGT YG_LOOP
+				BL VGA_DRAW_GRID_HELPER
+				ADD R7, R7, #1//小x counter
+				ADD R0, R0, #1
+				B XG_LOOP
+	
+END_DRAW:
+	POP {R3, R4, R5, R6, R7, R8, LR}
+	BX LR
+
+//------//------//------//------//------//----//------//--------
+
+draw_ampersand_ASM:
+	PUSH {R10,R11,LR}
+    MOV r2, #38
+    MOV r11, #2
+    MOV r10, #2
+    BL  VGA_write_char_ASM
+	POP {R10,R11,LR}
+	BX LR
+//------//------//------//------//------//----//------//--------
+draw_exit_ASM:
+	PUSH {R10,R11,LR}
+    MOV r2, #69
+    MOV r11, #55
+    MOV r10, #73
+    BL  VGA_write_char_ASM
+	MOV r2, #120
+    MOV r11, #55
+    MOV r10, #74
+    BL  VGA_write_char_ASM
+	MOV r2, #105
+    MOV r11, #55
+    MOV r10, #75
+    BL  VGA_write_char_ASM
+	MOV r2, #116
+    MOV r11, #55
+    MOV r10, #76
+    BL  VGA_write_char_ASM
+	POP {R10,R11,LR}
+	BX LR
+
+//------//------//------//------//------//----//------//--------
+
+VGA_write_char_ASM:
+	PUSH {R3,R5,R6,R7,R10,R11,LR}
+	LDR R3, =CHAR_ADDR
+	
+	CMP R10, #79
+	BGT ERROR
+	
+	CMP R11, #59
+	BGT ERROR
+	
+	LSL R6, R10, #0 //X
+	LSL R7, R11, #7 //Y
+	
+	ADD R5, R6, R7 //[shiftedX+shiftedY]
+	ADD R5, R5, R3
+	STRLEB R2, [R5]
+	POP {R3,R5,R6,R7,R10,R11,LR}
+	BX LR
+	
+VGA_clear_charbuff_ASM:
+	PUSH {LR}
+	MOV R2, #32
+	BL VGA_write_char_ASM
+	POP {LR}
+	BX LR
+    
+//------//------//------//------//------//----//------//--------
+
+draw_obstacles_ASM:
+	PUSH {R4,R5,R6,R7,R8,R9,R12,LR}
+	
+	CMP R9, #1
+	LDREQ R3, =input_maze_1
+	BEQ READY
+	
+	CMP R9, #2
+	LDREQ R3, =input_maze_2
+	BEQ READY
+	
+	CMP R9, #3
+	LDREQ R3, =input_maze_3
+	BEQ READY
+	
+	CMP R9, #4
+	LDREQ R3, =input_maze_4
+	BEQ READY
+	
+	CMP R9, #5
+	LDREQ R3, =input_maze_5
+	BEQ READY
+	
+	CMP R9, #6
+	LDREQ R3, =input_maze_6
+	BEQ READY
+	
+	CMP R9, #7
+	LDREQ R3, =input_maze_7
+	BEQ READY
+	
+	CMP R9, #8
+	LDREQ R3, =input_maze_8
+	BEQ READY
+	
+	CMP R9, #9
+	LDREQ R3, =input_maze_9
+	BEQ READY
+	
+	READY:
+	MOV R7, #0
+	READ_Y:
+	MOV R6, #0
+	CMP R7, #8 //Y counter
+	BLE READ_X
+	BGT END_CHECK
+	
+		READ_X:
+		CMP R6, #11 //X counter
+		ADDGT R7, R7, #1
+		BGT READ_Y
+		MOV R12, #12
+		MUL R5, R7, R12 //12*竖
+		ADD R8, R5, R6//12*竖+横
+		LDR R4, [R3, R8, LSL#2]
+		CMP R4, #1
+		BLEQ fill_grid_ASM
+		ADD R6, R6, #1
+		B READ_X	
+
+END_CHECK:
+	POP {R4,R5,R6,R7,R8,R9,R12,LR}
+	BX LR
+	
+/////---------------------------///////////////------------
+
+fill_grid_ASM:
+	PUSH {R5,R9,R10,R11,LR}
+	
+	MOV R9, #0 //clear y counter
+	MOV R12, #26
+	MUL R11, R7, R12 //y offset
+	MUL R10, R6, R12//x offset
+	MOV R1, R11 //set y to offset
+	
+	SMALL_Y_WHITE:
+	MOV R0, R10 //set 小x counter to offset
+	MOV R5, #0 //clear x counter
+	CMP R9, #23
+	BLE SMALL_X_WHITE
+	BGT END_WHITE
+	
+		SMALL_X_WHITE:
+		CMP R5, #23
+		ADDGT R9, R9, #1 //小y counter
+		ADDGT R1, R1, #1 //y offset加一
+		BGT SMALL_Y_WHITE
+		BL VGA_DRAW_GRID_2
+		ADD R5, R5, #1//小x counter
+		ADD R0, R0, #1
+		B SMALL_X_WHITE
+	
+	END_WHITE:
+	POP {R5,R9,R10,R11,LR}
+	BX LR
+	
+////////////////////////////////////////////////////////////////
+
+VGA_DRAW_GRID_2:
+	PUSH {R3,R4,R5,R6,R7,LR}
+	LDR R2, =blue
+	
+	LDR R3, =PIX_ADDR
+	LDR R4, =size //312 is divisible by 12
+	CMP R0, R4
+	BGT ERROR 
+	
+	CMP R1, #234 //234 is divisible by 9
+	BGT ERROR
+	
+	LSL R6, R0, #1 //X (start with X=0, next time it will move to X=2)
+	LSL R7, R1, #10 //Y
+	
+	ADD R5, R6, R7 //shiftedX+shiftedY
+	ADD R5, R5, R3 //base_addr + shiftedX + shiftedY (offset of pixel)
+	STRLEH R2, [R5]	
+	POP {R3,R4,R5,R6,R7,LR}
+	BX LR
+
+//------//------//------//------//------//----//------//--------
+read_PS2_data_ASM:
+	PUSH {R3,R4,R5,R6,R7,LR}
+	LDR R3, =PS2_DATA
+	LDR R5, [R3]
+	MOV R4, R5
+	LSR R4,R4,#15
+	ANDS R4, R4, #1
+	STRNEB R5, [R6]	
+	MOVNE R0, #1
+	MOVEQ R0, #0
+
+	
+	POP {R3,R4,R5,R6,R7,LR}
+	BX LR
+//------//------//------//------//------//----//------//--------
+
+
+//------//------//------//------//------//----//------//--------
+
+CHOOSE_MAZE:
+	PUSH {R6,R9,LR}
+	//LDR R0, =room
+
+WAIT_INPUT:
+	BL read_PS2_data_ASM
+	CMP R0, #0
+	BEQ WAIT_INPUT
+	
+	BNE CHOICE
+	
+CHOICE:
+	LDRB R9, [R6]
+	CMP R9, #0x16
+	MOVEQ R9, #1
+	BEQ BACK
+	
+	CMP R9, #0x1E
+	MOVEQ R9, #2
+	BEQ BACK
+	
+	CMP R9, #0x26
+	MOVEQ R9, #3
+	BEQ BACK
+	
+	CMP R9, #0x25
+	MOVEQ R9, #4
+	BEQ BACK
+	
+	CMP R9, #0x2E
+	MOVEQ R9, #5
+	BEQ BACK
+	
+	CMP R9, #0x36
+	MOVEQ R9, #6
+	BEQ BACK
+	
+	CMP R9, #0x3D
+	MOVEQ R9, #7
+	BEQ BACK
+	
+	CMP R9, #0x3E
+	MOVEQ R9, #8
+	BEQ BACK
+	
+	CMP R9, #0x46
+	MOVEQ R9, #9
+	BEQ BACK
+	
+	BNE WAIT_INPUT
+	//BNE ERROR
+	
+BACK:
+	BL draw_obstacles_ASM
+	POP {R6,R9,LR}
+	BX LR
+//------//------//------//------//------//----//------//--------
+
+move_ASM:
+//read click, 看有没有obstacles， 没有move &, 有的话不move 重新读
+	PUSH {R2,R3,R4,R5,R6,R8,R9,R10,R11,R12,LR}
+	MOV R12, #1
+WAIT_ARROW:
+	BL read_PS2_data_ASM
+	CMP R0, #0
+	BEQ WAIT_ARROW
+	BNE FIX
+
+FIX:	
+	CMP R12, #4
+	BGE CHECK_DIR
+	ADDLT R12,R12, #1
+	B WAIT_ARROW
+
+CHECK_DIR:
+MOV R12, #0
+	LDRB R9, [R6]
+	
+	CMP R9, #0x75 //上
+	MOVEQ R9, #1
+	BEQ GO
+	
+	CMP R9, #0x6B //左
+	MOVEQ R9, #2
+	BEQ GO
+	
+	CMP R9, #0x72 //下
+	MOVEQ R9, #3
+	BEQ GO
+	
+	CMP R9, #0x74 //右
+	MOVEQ R9, #4
+	BEQ GO
+	
+	MOVNE R12, #0
+	BNE WAIT_ARROW
+
+GO:
+///////////---------------//////////////------------------------
+RIGHT:
+	CMP R9, #4
+	BNE LEFT	
+	BEQ CHECK_OBSTACLES_RIGHT
+CHECK_OBSTACLES_RIGHT:
+	CMP R8, #107
+	BLE ADD_R
+	BGT ERROR
+ADD_R:
+	CMP R10, #74
+	BEQ WAIT_ARROW
+	ADD R8, R8, #1
+	LDR R4, [R3, R8, LSL#2]	
+	CMP R4, #3
+	BEQ DONE
+	CMP R4, #0
+	BLEQ VGA_clear_charbuff_ASM//clear了整个char
+	CMP R4, #2
+	BLEQ VGA_clear_charbuff_ASM//clear了整个char
+	CMP R4, #1
+	SUBEQ R8,R8, #1
+	BEQ WAIT_ARROW
+	B CHANGE_R
+CHANGE_R:
+	CMP R10, #0
+	BEQ CLEAR_START_R
+
+	CMP R10, #2
+	ADDEQ R10, R10, #7
+	BEQ MOVE_R
+	
+	CMP R10, #3
+	ADDEQ R10, R10, #6
+	BEQ MOVE_R
+	
+	CMP R10, #9
+	ADDEQ R10, R10, #7
+	BEQ MOVE_R
+	
+	CMP R10, #16
+	ADDEQ R10, R10, #6
+	BEQ MOVE_R
+	
+	CMP R10, #22
+	ADDEQ R10, R10, #6
+	BEQ MOVE_R
+	
+	CMP R10, #28
+	ADDEQ R10, R10, #7
+	BEQ MOVE_R
+	
+	CMP R10, #35
+	ADDEQ R10, R10, #7
+	BEQ MOVE_R
+	
+	CMP R10, #42
+	ADDEQ R10, R10, #6
+	BEQ MOVE_R
+	
+	CMP R10, #48
+	ADDEQ R10, R10, #6
+	BEQ MOVE_R
+	
+	CMP R10, #54
+	ADDEQ R10, R10, #7
+	BEQ MOVE_R
+	
+	CMP R10, #61
+	ADDEQ R10, R10, #7
+	BEQ MOVE_R
+	
+	CMP R10, #68
+	ADDEQ R10, R10, #6
+	BEQ MOVE_R
+	
+	CMP R10, #74
+	SUBEQ R8, R8, #1
+	BEQ WAIT_ARROW
+	
+MOVE_R:
+	MOV R2, #38
+	BL VGA_write_char_ASM
+	MOV R0, #0
+	MOV R9, #0
+	B WAIT_ARROW
+	
+CLEAR_START_R:
+	CMP R10, #0
+	MOVEQ R10, #2
+	CMP R11, #0
+	MOVEQ R11, #2
+	BLEQ VGA_clear_charbuff_ASM
+	B CHANGE_R
+///////////---------------//////////////------------------------	
+LEFT:
+	CMP R9, #2
+	BNE DOWN
+	BEQ CHECK_OBSTACLES_LEFT
+CHECK_OBSTACLES_LEFT:
+	CMP R8, #107
+	BLE SUB_L
+	BGT ERROR
+SUB_L:
+	CMP R10, #2
+	BEQ WAIT_ARROW
+	CMP R10, #3
+	BEQ WAIT_ARROW
+	
+	CMP R8, #0
+	SUBGT R8, R8, #1
+	LDR R4, [R3, R8, LSL#2]
+	CMP R4, #3
+	BEQ DONE
+	CMP R4, #0
+	BLEQ VGA_clear_charbuff_ASM//clear了整个char
+	CMP R4, #2
+	BLEQ VGA_clear_charbuff_ASM
+	CMP R4, #1
+	ADDEQ R8,R8,#1
+	BEQ WAIT_ARROW
+	B CHANGE_L
+CHANGE_L:
+	CMP R10, #0
+	MOVEQ R10, #2
+
+	CMP R10, #74
+	SUBEQ R10, R10, #6
+	BEQ MOVE_L
+	
+	CMP R10, #68
+	SUBEQ R10, R10, #7
+	BEQ MOVE_L
+	
+	CMP R10, #61
+	SUBEQ R10, R10, #7
+	BEQ MOVE_L
+	
+	CMP R10, #54
+	SUBEQ R10, R10, #6
+	BEQ MOVE_L
+	
+	CMP R10, #48
+	SUBEQ R10, R10, #6
+	BEQ MOVE_L
+	
+	CMP R10, #42
+	SUBEQ R10, R10, #7
+	BEQ MOVE_L
+	
+	CMP R10, #35
+	SUBEQ R10, R10, #7
+	BEQ MOVE_L
+	
+	CMP R10, #28
+	SUBEQ R10, R10, #6
+	BEQ MOVE_L
+	
+	CMP R10, #22
+	SUBEQ R10, R10, #6
+	BEQ MOVE_L
+	
+	CMP R10, #16
+	SUBEQ R10, R10, #7
+	BEQ MOVE_L
+	
+	CMP R10, #9
+	SUBEQ R10, R10, #6
+	BEQ MOVE_L
+	
+	CMP R10, #2
+	MOVEQ R10, #0
+	BEQ WAIT_ARROW
+	
+MOVE_L:	
+	MOV R2, #38
+	BL VGA_write_char_ASM
+	MOV R0, #0
+	MOV R9, #0
+	B WAIT_ARROW
+
+/////////////////-----------/////////////----------------//////////////-
+DOWN:
+	CMP R9, #3
+	BNE UP
+	BEQ CHECK_OBSTACLES_DOWN
+CHECK_OBSTACLES_DOWN:
+	CMP R8, #107
+	BLE ADD_D
+	BGT ERROR
+ADD_D:	
+	CMP R11, #54
+	BEQ WAIT_ARROW
+	ADD R8, R8, #12
+	LDR R4, [R3, R8, LSL#2]
+	CMP R4, #3
+	BEQ DONE
+	CMP R4, #0
+	BLEQ VGA_clear_charbuff_ASM//clear了整个char
+	CMP R4, #2
+	BLEQ VGA_clear_charbuff_ASM//clear了整个char
+	CMP R4, #1
+	SUBEQ R8,R8, #12
+	BEQ WAIT_ARROW
+	B CHANGE_D
+CHANGE_D:
+	CMP R10, #0
+	BEQ CLEAR_START_D
+
+	CMP R11, #2
+	ADDEQ R11, R11, #7
+	BEQ MOVE_D
+	
+	CMP R11, #3
+	ADDEQ R11, R11, #6
+	BEQ MOVE_D
+	
+	CMP R11, #9
+	ADDEQ R11, R11, #7
+	BEQ MOVE_D
+	
+	CMP R11, #16
+	ADDEQ R11, R11, #6
+	BEQ MOVE_D
+	
+	CMP R11, #22
+	ADDEQ R11, R11, #6
+	BEQ MOVE_D
+	
+	CMP R11, #28
+	ADDEQ R11, R11, #7
+	BEQ MOVE_D
+	
+	CMP R11, #35
+	ADDEQ R11, R11, #7
+	BEQ MOVE_D
+	
+	CMP R11, #42
+	ADDEQ R11, R11, #6
+	BEQ MOVE_D
+	
+	CMP R11, #48
+	ADDEQ R11, R11, #6
+	BEQ MOVE_D
+	
+	CMP R11, #54
+	SUBEQ R8, R8, #12
+	BEQ WAIT_ARROW
+	
+MOVE_D:	
+	MOV R2, #38
+	BL VGA_write_char_ASM
+	MOV R0, #0
+	MOV R9, #0
+	B WAIT_ARROW	
+CLEAR_START_D:
+	CMP R10, #0
+	MOVEQ R10, #2
+	CMP R11, #0
+	MOVEQ R11, #2
+	BLEQ VGA_clear_charbuff_ASM
+	B CHANGE_D
+////////////--------------/////////////////-------------///////	
+UP:
+	CMP R9, #1
+	BNE WAIT_ARROW
+	BEQ CHECK_OBSTACLES_UP
+CHECK_OBSTACLES_UP:
+	//PUSH {R3,R4,R8,LR}
+	CMP R8, #107
+	BLE SUB_U
+	BGT ERROR
+SUB_U:
+	CMP R11, #2
+	BEQ WAIT_ARROW
+	CMP R11, #3
+	BEQ WAIT_ARROW
+	
+	CMP R8, #12
+	SUBGE R8, R8, #12
+	LDR R4, [R3, R8, LSL#2]
+	CMP R4, #3
+	BEQ DONE
+	CMP R4, #0
+	BLEQ VGA_clear_charbuff_ASM//clear了整个char
+	CMP R4, #2
+	BLEQ VGA_clear_charbuff_ASM//clear了整个char
+	CMP R4, #1
+	ADDEQ R8,R8,#12
+	BEQ WAIT_ARROW
+	B CHANGE_U
+CHANGE_U:
+
+	CMP R11, #0
+	MOVEQ R11, #2
+	
+	CMP R11, #54
+	SUBEQ R11, R11, #6
+	BEQ MOVE_U
+	
+	CMP R11, #48
+	SUBEQ R11, R11, #6
+	BEQ MOVE_U
+	
+	CMP R11, #42
+	SUBEQ R11,R11,#7
+	BEQ MOVE_U
+	
+	CMP R11, #35
+	SUBEQ R11, R11, #7
+	BEQ MOVE_U
+	
+	CMP R11, #28
+	SUBEQ R11, R11, #6
+	BEQ MOVE_U
+	
+	CMP R11, #22
+	SUBEQ R11, R11, #6
+	BEQ MOVE_U
+	
+	CMP R11, #16
+	SUBEQ R11, R11, #7
+	BEQ MOVE_U
+	
+	CMP R11, #9
+	SUBEQ R11, R11, #6
+	BEQ MOVE_U
+	
+	CMP R11, #2
+	MOVEQ R11, #0
+	BEQ WAIT_ARROW
+		
+MOVE_U:
+	MOV R2, #38
+	BL VGA_write_char_ASM
+	MOV R0, #0
+	MOV R9, #0
+	B WAIT_ARROW
+////////////--------------/////////////////-------------//////	
+DONE:
+	BL VGA_clear_charbuff_ASM
+
+	POP {R2,R3,R4,R5,R6,R8,R9,R10,R11,R12,LR}
+	BX LR
+
+
+WRITE_WIN:
+	PUSH {R10,R11,LR}
+	MOV r2, #32
+    MOV r11, #55
+    MOV r10, #73
+    BL  VGA_write_char_ASM
+	MOV r2, #32
+    MOV r11, #55
+    MOV r10, #74
+    BL  VGA_write_char_ASM
+	MOV r2, #32
+    MOV r11, #55
+    MOV r10, #75
+    BL  VGA_write_char_ASM
+	MOV r2, #32
+    MOV r11, #55
+    MOV r10, #76
+    BL  VGA_write_char_ASM
+    MOV r2, #0x57 //W
+    MOV r11, #26
+    MOV r10, #36
+    BL  VGA_write_char_ASM
+	MOV r2, #0x49 //I
+    MOV r11, #26
+    MOV r10, #37
+    BL  VGA_write_char_ASM
+	MOV r2, #0x4E //N
+    MOV r11, #26
+    MOV r10, #38
+    BL  VGA_write_char_ASM
+	POP {R10,R11,LR}
+	BX LR
+//------//------//------//------//------//----//------//--------
+STAY:
+	PUSH {R9, R10, R11, R12, LR}
+STAY_LOOP:
+	LDR R11, =LOAD_REG
+	LDR R12, =#2000000000
+	STR R12, [R11]
+	
+	LDR R11, =CTR_REG
+	MOV R12, #0b11
+	STR R12, [R11]
+	
+	CHECK_INT:
+	LDR R10, =INT_REG
+	LDR R9, [R10]
+	CMP R9, #1
+	BNE CHECK_INT
+
+	MOVEQ R9, #1
+	STREQB R9, [R10]
+	MOVEQ R12, #0b10
+	STREQ R12, [R11]
+
+	POP {R9, R10, R11, R12, LR}
+	BX LR
+	
+CLEAR_WIN:
+	PUSH {R10,R11,LR}
+    MOV r2, #32 //W
+    MOV r11, #26
+    MOV r10, #36
+    BL  VGA_write_char_ASM
+	MOV r2, #32 //I
+    MOV r11, #26
+    MOV r10, #37
+    BL  VGA_write_char_ASM
+	MOV r2, #32 //N
+    MOV r11, #26
+    MOV r10, #38
+    BL  VGA_write_char_ASM
+	POP {R10,R11,LR}
+	BX LR
+//------//------//------//------//------//----//------//--------
+ERROR:
+	B ERROR
+	
